@@ -1,17 +1,17 @@
-# js-db
+# js-idb
 
 A lightweight JSON database for TypeScript with schema validation and indexed search. Works in-memory or persisted to disk.
 
 ## Install
 
 ```bash
-npm install js-db
+npm install js-idb
 ```
 
 ## Usage
 
 ```ts
-import { createDB } from "js-db";
+import { createDB } from "js-idb";
 
 const db = createDB({
   collections: {

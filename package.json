@@ -1,5 +1,5 @@
 {
-  "name": "js-db",
+  "name": "js-idb",
   "version": "0.1.0",
   "description": "Simple JSON database with fast search over data via indexes and type checking",
   "main": "dist/index.js",
