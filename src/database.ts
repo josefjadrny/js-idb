@@ -1,32 +1,44 @@
-import type { Schema, DatabaseOptions, CollectionOptions } from './types.js';
+import type { Schema, CollectionConfig, StorageAdapter } from './types.js';
 import { Collection } from './collection.js';
+import { MemoryAdapter, FileAdapter } from './storage.js';
+import { validateSchema } from './validation.js';
 
-export class Database {
-  private options: DatabaseOptions;
-  private collections = new Map<string, Collection<any>>();
+type DBCollections<T extends Record<string, CollectionConfig>> = {
+  [K in keyof T]: Collection<T[K]['schema']>;
+};
 
-  constructor(options: DatabaseOptions = {}) {
-    this.options = options;
+type DBInstance<T extends Record<string, CollectionConfig>> = DBCollections<T> & {
+  collection<K extends keyof T & string>(name: K): Collection<T[K]['schema']>;
+};
+
+export function createDB<T extends Record<string, CollectionConfig>>(
+  options: { path?: string; collections: T },
+): DBInstance<T> {
+  const storage: StorageAdapter = options.path
+    ? new FileAdapter(options.path)
+    : new MemoryAdapter();
+
+  const collections = new Map<string, Collection<Schema>>();
+
+  for (const [name, config] of Object.entries(options.collections)) {
+    validateSchema(config.schema);
+    const col = new Collection(name, config.schema, storage);
+    collections.set(name, col);
   }
 
-  /** Create or get a collection */
-  collection<S extends Schema>(name: string, options: CollectionOptions<S>): Collection<S> {
-    if (this.collections.has(name)) {
-      return this.collections.get(name) as Collection<S>;
+  const db = {} as Record<string, unknown>;
+
+  for (const [name, col] of collections) {
+    db[name] = col;
+  }
+
+  db['collection'] = (name: string) => {
+    const col = collections.get(name);
+    if (!col) {
+      throw new Error(`Collection "${name}" does not exist`);
     }
-
-    const col = new Collection<S>(name, options);
-    this.collections.set(name, col);
     return col;
-  }
+  };
 
-  /** Drop a collection */
-  drop(name: string): boolean {
-    return this.collections.delete(name);
-  }
-
-  /** List all collection names */
-  list(): string[] {
-    return [...this.collections.keys()];
-  }
+  return db as DBInstance<T>;
 }

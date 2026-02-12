@@ -1,7 +1,5 @@
-import type { Schema, CollectionOptions } from './types.js';
-import { Index } from './index-store.js';
-import { Collection } from './collection.js';
-import { Database } from './database.js';
-
-export { Database, Collection, Index };
+export { createDB } from './database.js';
+export { Collection } from './collection.js';
+export { Index } from './index-store.js';
+export { MemoryAdapter, FileAdapter } from './storage.js';
 export type * from './types.js';
