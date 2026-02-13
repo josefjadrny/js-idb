@@ -182,6 +182,22 @@ export class Index {
     return results;
   }
 
+  orderedIds(subset?: Set<string>, reverse?: boolean): string[] {
+    const results: string[] = [];
+    if (reverse) {
+      for (let i = this.entries.length - 1; i >= 0; i--) {
+        const id = this.entries[i]!.id;
+        if (!subset || subset.has(id)) results.push(id);
+      }
+    } else {
+      for (let i = 0; i < this.entries.length; i++) {
+        const id = this.entries[i]!.id;
+        if (!subset || subset.has(id)) results.push(id);
+      }
+    }
+    return results;
+  }
+
   serialize(): IndexEntry[] {
     return this.entries;
   }

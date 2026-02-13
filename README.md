@@ -5,6 +5,7 @@ A lightweight JSON database for TypeScript with schema validation and indexed se
 - Written in TypeScript with full type inference
 - Schema validation with `string`, `number`, `boolean`, `object` types
 - Fast indexed search with prefix, suffix, contains, and range queries
+- Sorting by indexed fields (ascending/descending) without client-side sort
 - In-memory or file-based persistence
 - Zero dependencies, Node.js 24+
 
@@ -109,17 +110,19 @@ Retrieves a single record by ID.
 const doc = db.users.get("some-id");
 ```
 
-### `collection.all(): Document[]`
+### `collection.all(options?): Document[]`
 
-Returns all records in the collection.
+Returns all records in the collection. Supports optional sorting.
 
 ```ts
 const docs = db.users.all();
+const sorted = db.users.all({ sort: 'age' });    // ascending
+const desc = db.users.all({ sort: '-age' });      // descending
 ```
 
-### `collection.find(query): Document[]`
+### `collection.find(query, options?): Document[]`
 
-Searches indexed fields. All queried fields must have `index: true`. Multiple fields are intersected (AND).
+Searches indexed fields. All queried fields must have `index: true`. Multiple fields are intersected (AND). Supports optional sorting.
 
 ```ts
 // String queries
@@ -140,6 +143,10 @@ db.users.find({ active: "true" });
 
 // Compound (intersection)
 db.users.find({ name: "jos%", age: "<=30" });
+
+// With sorting
+db.users.find({ age: ">20" }, { sort: "name" });   // results sorted by name
+db.users.find({ active: "true" }, { sort: "-age" }); // sorted by age descending
 ```
 
 ### `collection.update(id, partial): Document`
@@ -229,6 +236,18 @@ db.users.add({ name: "Josef", age: 30 }); // active is optional
 db.users.update(id, { age: 31 });         // Partial<User>
 const doc = db.users.get(id);             // User & { _id: string } | undefined
 ```
+
+## Sorting
+
+Both `all()` and `find()` accept an optional `{ sort }` parameter. Prefix the field name with `-` for descending order.
+
+```ts
+db.users.all({ sort: 'age' });                        // ascending by age
+db.users.all({ sort: '-name' });                      // descending by name
+db.users.find({ active: 'true' }, { sort: 'name' });  // filtered + sorted
+```
+
+Only indexed fields can be used for sorting. Since indexes are stored as sorted arrays, sorting is O(n) — a linear scan of pre-sorted data — instead of the O(n log n) required by a client-side sort.
 
 ## Performance
 

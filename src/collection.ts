@@ -137,6 +137,22 @@ export class Collection<T = Record<string, unknown>> {
     return { _id: id, ...record } as Document<T>;
   }
 
+  private parseSort(sort: string): { field: string; reverse: boolean } {
+    const reverse = sort.startsWith('-');
+    const field = reverse ? sort.slice(1) : sort;
+    return { field, reverse };
+  }
+
+  private resolveSort(sort: string, indexes: Map<string, Index>, data: Map<string, Record<string, unknown>>, subset?: Set<string>): Document<T>[] {
+    const { field, reverse } = this.parseSort(sort);
+    const index = indexes.get(field);
+    if (!index) {
+      throw new Error(`Field "${field}" is not indexed. Add "index: true" to the schema to enable sorting.`);
+    }
+    const ids = index.orderedIds(subset, reverse);
+    return ids.map(id => this.toDocument(id, data.get(id)!));
+  }
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
@@ -229,19 +245,25 @@ export class Collection<T = Record<string, unknown>> {
     return this.toDocument(id, record);
   }
 
-  all(): Document<T>[] {
+  all(options?: { sort?: string }): Document<T>[] {
     if (this.fileMode) {
       const data = this.readData();
+      if (options?.sort) {
+        return this.resolveSort(options.sort, this.loadIndexesFromMeta(), data);
+      }
       return [...data.entries()].map(([id, record]) => this.toDocument(id, record));
     }
 
+    if (options?.sort) {
+      return this.resolveSort(options.sort, this.indexes, this.data);
+    }
     return [...this.data.entries()].map(([id, record]) => this.toDocument(id, record));
   }
 
-  find(query: Record<string, string>): Document<T>[] {
+  find(query: Record<string, string>, options?: { sort?: string }): Document<T>[] {
     const queryEntries = Object.entries(query);
     if (queryEntries.length === 0) {
-      return this.all();
+      return this.all(options);
     }
 
     const indexes = this.fileMode ? this.loadIndexesFromMeta() : this.indexes;
@@ -271,9 +293,15 @@ export class Collection<T = Record<string, unknown>> {
 
     if (this.fileMode) {
       const data = this.readData();
+      if (options?.sort) {
+        return this.resolveSort(options.sort, indexes, data, resultIds!);
+      }
       return [...resultIds!].map(id => this.toDocument(id, data.get(id)!));
     }
 
+    if (options?.sort) {
+      return this.resolveSort(options.sort, this.indexes, this.data, resultIds!);
+    }
     return [...resultIds!].map(id => this.get(id)!);
   }
 

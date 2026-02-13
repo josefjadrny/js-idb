@@ -467,6 +467,80 @@ describe('Collection', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Sorting
+// ---------------------------------------------------------------------------
+describe('Sorting', () => {
+  const schema = {
+    name: { type: 'string' as const, index: true, indexSetting: { ignoreCase: true } },
+    age: { type: 'number' as const, index: true },
+    sex: { type: 'string' as const },
+  };
+
+  function makeDB() {
+    const col = new Collection<{ name: string; age: number; sex: string }>('users', schema, new MemoryAdapter());
+    col.addMany([
+      { name: 'Charlie', age: 35, sex: 'male' },
+      { name: 'Alice', age: 25, sex: 'female' },
+      { name: 'Bob', age: 30, sex: 'male' },
+    ]);
+    return col;
+  }
+
+  test('all sorted by string field ascending', () => {
+    const col = makeDB();
+    const docs = col.all({ sort: 'name' });
+    expect(docs.map(d => d.name)).toEqual(['Alice', 'Bob', 'Charlie']);
+  });
+
+  test('all sorted by string field descending', () => {
+    const col = makeDB();
+    const docs = col.all({ sort: '-name' });
+    expect(docs.map(d => d.name)).toEqual(['Charlie', 'Bob', 'Alice']);
+  });
+
+  test('all sorted by number field ascending', () => {
+    const col = makeDB();
+    const docs = col.all({ sort: 'age' });
+    expect(docs.map(d => d.age)).toEqual([25, 30, 35]);
+  });
+
+  test('all sorted by number field descending', () => {
+    const col = makeDB();
+    const docs = col.all({ sort: '-age' });
+    expect(docs.map(d => d.age)).toEqual([35, 30, 25]);
+  });
+
+  test('find with sort', () => {
+    const col = makeDB();
+    const docs = col.find({ age: '>20' }, { sort: '-name' });
+    expect(docs.map(d => d.name)).toEqual(['Charlie', 'Bob', 'Alice']);
+  });
+
+  test('find with sort filters correctly', () => {
+    const col = makeDB();
+    const docs = col.find({ age: '>28' }, { sort: 'name' });
+    expect(docs.map(d => d.name)).toEqual(['Bob', 'Charlie']);
+  });
+
+  test('sort throws on non-indexed field', () => {
+    const col = makeDB();
+    expect(() => col.all({ sort: 'sex' })).toThrow('not indexed');
+  });
+
+  test('all without sort returns unsorted', () => {
+    const col = makeDB();
+    const docs = col.all();
+    expect(docs).toHaveLength(3);
+  });
+
+  test('find with empty query delegates to all with sort', () => {
+    const col = makeDB();
+    const docs = col.find({}, { sort: 'age' });
+    expect(docs.map(d => d.age)).toEqual([25, 30, 35]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createDB factory
 // ---------------------------------------------------------------------------
 describe('createDB', () => {
