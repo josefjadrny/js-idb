@@ -4,7 +4,7 @@ import { Index } from '../src/index-store.js';
 import { MemoryAdapter } from '../src/storage.js';
 import { generateId } from '../src/id.js';
 import { validateRecord, validateSchema } from '../src/validation.js';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -549,14 +549,14 @@ describe('FileAdapter persistence', () => {
     const db1 = createDB({ path: tmpDir, collections: { users: { schema } } });
     const doc = db1.users.add({ name: 'Josef', age: 30 });
 
-    // Read in new instance
+    // Read in new instance — indexes loaded from meta, not rebuilt
     const db2 = createDB({ path: tmpDir, collections: { users: { schema } } });
     expect(db2.users.count).toBe(1);
     const found = db2.users.get(doc._id);
     expect(found).toBeDefined();
     expect(found!.name).toBe('Josef');
 
-    // Indexes rebuilt — search works
+    // Search works via persisted indexes
     const results = db2.users.find({ name: 'josef' });
     expect(results).toHaveLength(1);
   });
@@ -569,6 +569,85 @@ describe('FileAdapter persistence', () => {
 
     const db2 = createDB({ path: tmpDir, collections: { items: { schema } } });
     expect(db2.items.count).toBe(0);
+  });
+
+  test('schema mismatch wipes data and starts fresh', () => {
+    const schemaV1 = {
+      name: { type: 'string' as const },
+      age: { type: 'number' as const },
+    };
+    const schemaV2 = {
+      name: { type: 'string' as const },
+      age: { type: 'string' as const }, // type changed
+    };
+
+    const db1 = createDB({ path: tmpDir, collections: { users: { schema: schemaV1 } } });
+    db1.users.add({ name: 'Josef', age: 30 });
+    expect(db1.users.count).toBe(1);
+
+    // Reopen with different schema — data wiped
+    const db2 = createDB({ path: tmpDir, collections: { users: { schema: schemaV2 } } });
+    expect(db2.users.count).toBe(0);
+  });
+
+  test('schema mismatch — field added', () => {
+    const schemaV1 = { name: { type: 'string' as const } };
+    const schemaV2 = { name: { type: 'string' as const }, age: { type: 'number' as const } };
+
+    const db1 = createDB({ path: tmpDir, collections: { users: { schema: schemaV1 } } });
+    db1.users.add({ name: 'Josef' });
+
+    const db2 = createDB({ path: tmpDir, collections: { users: { schema: schemaV2 } } });
+    expect(db2.users.count).toBe(0);
+  });
+
+  test('schema mismatch — index changed', () => {
+    const schemaV1 = { name: { type: 'string' as const } };
+    const schemaV2 = { name: { type: 'string' as const, index: true } };
+
+    const db1 = createDB({ path: tmpDir, collections: { users: { schema: schemaV1 } } });
+    db1.users.add({ name: 'Josef' });
+
+    const db2 = createDB({ path: tmpDir, collections: { users: { schema: schemaV2 } } });
+    expect(db2.users.count).toBe(0);
+  });
+
+  test('same schema preserves data', () => {
+    const schema = { name: { type: 'string' as const, index: true } };
+
+    const db1 = createDB({ path: tmpDir, collections: { users: { schema } } });
+    db1.users.add({ name: 'Josef' });
+    db1.users.add({ name: 'Karel' });
+
+    const db2 = createDB({ path: tmpDir, collections: { users: { schema } } });
+    expect(db2.users.count).toBe(2);
+    expect(db2.users.find({ name: 'Josef' })).toHaveLength(1);
+  });
+
+  test('indexes are persisted in meta file', () => {
+    const schema = {
+      name: { type: 'string' as const, index: true, indexSetting: { ignoreCase: true } },
+      age: { type: 'number' as const, index: true },
+    };
+
+    const db1 = createDB({ path: tmpDir, collections: { users: { schema } } });
+    db1.users.addMany([
+      { name: 'Josef', age: 30 },
+      { name: 'Karel', age: 25 },
+      { name: 'Anna', age: 35 },
+    ]);
+
+    // Verify meta file contains indexes
+    const metaPath = join(tmpDir, 'users.meta.json');
+    const meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
+    expect(meta.indexes).toBeDefined();
+    expect(meta.indexes.name).toHaveLength(3);
+    expect(meta.indexes.age).toHaveLength(3);
+
+    // New instance uses persisted indexes for search
+    const db2 = createDB({ path: tmpDir, collections: { users: { schema } } });
+    expect(db2.users.find({ name: 'josef' })).toHaveLength(1);
+    expect(db2.users.find({ age: '>25' })).toHaveLength(2);
   });
 });
 

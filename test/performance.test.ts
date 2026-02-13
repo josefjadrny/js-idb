@@ -189,26 +189,26 @@ describe('Performance — file persistence', () => {
     expect(ms).toBeLessThan(10000);
   });
 
-  test('load from disk and rebuild indexes', () => {
+  test('startup with persisted indexes', () => {
     const db1 = createDB({ path: tmpDir, collections: { users: { schema } } });
     db1.users.addMany(records);
 
-    const ms = measure(`file load + rebuild x${RECORD_COUNT}`, () => {
+    const ms = measure(`file startup x${RECORD_COUNT}`, () => {
       createDB({ path: tmpDir, collections: { users: { schema } } });
     });
     expect(ms).toBeLessThan(2000);
   });
 
-  test('find after reload from disk', () => {
+  test('find reads from disk', () => {
     const db1 = createDB({ path: tmpDir, collections: { users: { schema } } });
     db1.users.addMany(records);
 
     const db2 = createDB({ path: tmpDir, collections: { users: { schema } } });
-    const ms = measure('file find after reload', () => {
+    const ms = measure('file find from disk', () => {
       const result = db2.users.find({ name: 'user_500' });
       expect(result).toHaveLength(1);
     });
-    expect(ms).toBeLessThan(100);
+    expect(ms).toBeLessThan(500);
   });
 
   test(`update ${RECORD_COUNT} records`, () => {

@@ -236,16 +236,17 @@ Indexed search uses sorted data structures, not full scans.
 
 ### In-memory mode
 
-- No I/O — all operations work with in-memory data structures only
+- All data and indexes live in RAM — fastest possible reads and writes
 - Data is lost when the process exits
 - Best for temporary data, caches, or browser environments
 
 ### File persistence
 
-- Data is loaded from disk into memory on startup, then all reads (`get`, `all`, `find`) are served from memory
-- Every `add`, `update`, and `remove` writes the full collection to disk
-- `addMany` batches into a single write — significantly faster for bulk inserts
-- Indexes are rebuilt from data on load, so there is no index corruption risk
+- Data and indexes live on disk — nothing is held in memory
+- Every operation (`get`, `find`, `add`, `update`, `remove`) reads from and writes to disk
+- `addMany` batches into a single write — significantly faster than individual `add` calls
+- Indexes are persisted in the meta file and used directly on search — no rebuilding on startup
+- On startup, the stored schema is validated against the provided schema — if they differ, files are regenerated (stale data is wiped)
 - Best for small to medium datasets that need to survive restarts
 
 ## License

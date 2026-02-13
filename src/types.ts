@@ -45,7 +45,7 @@ export interface StorageAdapter {
   writeMeta(collection: string, meta: CollectionMeta): void;
 }
 
-/** Indexes are rebuilt from data on load, so meta only stores the schema */
 export interface CollectionMeta {
   schema: Schema;
+  indexes: Record<string, { value: string | number | boolean; id: string }[]>;
 }

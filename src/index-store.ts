@@ -182,6 +182,16 @@ export class Index {
     return results;
   }
 
+  serialize(): IndexEntry[] {
+    return this.entries;
+  }
+
+  static fromEntries(field: string, fieldType: FieldType, ignoreCase: boolean, entries: IndexEntry[]): Index {
+    const index = new Index(field, fieldType, ignoreCase);
+    index.entries = entries;
+    return index;
+  }
+
   clear(): void {
     this.entries = [];
   }
