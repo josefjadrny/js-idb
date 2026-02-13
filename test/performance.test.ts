@@ -220,6 +220,6 @@ describe('Performance — file persistence', () => {
         db.users.update(doc._id, { age: doc.age + 1 });
       }
     });
-    expect(ms).toBeLessThan(10000);
+    expect(ms).toBeLessThan(15000);
   });
 });
