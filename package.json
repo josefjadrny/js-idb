@@ -1,6 +1,6 @@
 {
   "name": "js-idb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple JSON database with fast search over data via indexes and type checking",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
